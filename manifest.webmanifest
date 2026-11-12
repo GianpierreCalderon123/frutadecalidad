@@ -1,0 +1,20 @@
+{
+  "id": "./",
+  "name": "Fruta de Calidad - Condominios Lima",
+  "short_name": "Fruta Calidad",
+  "description": "Pedidos agrupados de frutas frescas a condominios de Lima",
+  "lang": "es-PE",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f8f1",
+  "theme_color": "#167a4b",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
