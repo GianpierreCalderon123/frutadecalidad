@@ -1,0 +1,25 @@
+/* Despacho local de demostración: tarifas y aceptación por ruta. */
+(function(){
+const KEY='fc_dispatch_v1';let jobs={};try{jobs=JSON.parse(localStorage.getItem(KEY)||'{}')||{}}catch{}
+const esc=s=>escapeHTML(String(s??''));
+const store=()=>{try{localStorage.setItem(KEY,JSON.stringify(jobs));return true}catch{alert('No se pudo guardar la asignación');return false}};
+const get=id=>jobs[id]||(jobs[id]={fare:0,driver:'',state:'Disponible'});
+const groups=()=>{const m=new Map();for(const o of orders.filter(o=>['Preparado','En ruta','Entregado'].includes(o.status))){if(!m.has(o.condoId))m.set(o.condoId,[]);m.get(o.condoId).push(o)}return [...m].map(([id,items])=>({id,items,condo:CONDOS.find(c=>c.id===id)})).filter(x=>x.condo)};
+function renderDispatch(){
+const driver=document.getElementById('driverName')?.value?.trim()||sessionStorage.getItem('fc_driver')||'';
+const cards=groups().filter(g=>g.items.some(o=>o.status!=='Entregado'));
+const admin=document.getElementById('adminOrders');
+if(admin){const old=document.getElementById('dispatchAdmin');if(old)old.remove();const box=document.createElement('section');box.id='dispatchAdmin';box.innerHTML='<h2>🚕 Despacho y tarifas por condominio</h2><p class="muted">Oferta por ruta, no por pedido. Simulación local sin pagos ni notificaciones.</p>'+cards.map(g=>{const j=get(g.id);return '<div class="panel"><h3>'+esc(g.condo.name)+'</h3><p>'+g.items.length+' pedidos · Estado: <b>'+esc(j.state)+'</b></p><div class="dispatch-form"><label>Tarifa ofrecida (S/)<input type="number" min="1" max="9999" step=".5" data-fare="'+esc(g.id)+'" value="'+(j.fare||'')+'" placeholder="Ej. 35"></label><button class="primary" data-publish="'+esc(g.id)+'">Publicar oferta</button></div><p class="muted">Conductor: '+esc(j.driver||'Sin asignar')+'</p></div>'}).join('');admin.parentNode.insertBefore(box,admin)}
+const routes=document.getElementById('routes');if(routes){const old=document.getElementById('dispatchDriver');if(old)old.remove();const box=document.createElement('section');box.id='dispatchDriver';box.innerHTML='<h2>💼 Servicios disponibles</h2>'+cards.map(g=>{const j=get(g.id),mine=j.driver===driver&&driver;return '<div class="panel"><div class="workhead"><div><h3>'+esc(g.condo.name)+'</h3><p>'+g.items.length+' pedidos · '+esc(g.condo.address)+'</p></div><strong class="fare">'+(j.fare?'S/ '+Number(j.fare).toFixed(2):'Sin tarifa')+'</strong></div><p>Estado: <span class="tag">'+esc(j.state)+'</span> '+(j.driver?'· Conductor: '+esc(j.driver):'')+'</p>'+(j.state==='Disponible'&&j.fare>0?'<button class="primary" data-accept="'+esc(g.id)+'">Aceptar servicio</button>':'')+(mine&&j.state==='Aceptado'?'<button class="secondary" data-release="'+esc(g.id)+'">Liberar servicio (antes de recoger)</button>':'')+'</div>'}).join('')+'<p class="muted">El conductor debe aceptar una oferta antes de recoger pedidos. Esta asignación solo funciona en el navegador actual.</p>';routes.prepend(box)}
+}
+const old=renderOperations;renderOperations=function(){old();renderDispatch()};
+document.addEventListener('click',e=>{
+const t=e.target.closest('[data-publish],[data-accept],[data-release]');if(!t)return;
+if(t.dataset.publish){const id=t.dataset.publish,field=document.querySelector('[data-fare="'+id+'"]'),fare=Number(field?.value),j=get(id);if(!Number.isFinite(fare)||fare<=0||fare>9999){alert('Ingresa una tarifa válida');return}if(j.state==='Aceptado'){alert('La ruta ya está aceptada; libera el servicio antes de cambiar la tarifa.');return}j.fare=fare;j.state='Disponible';j.driver='';if(store())renderOperations()}
+if(t.dataset.accept){const id=t.dataset.accept,j=get(id),driver=(document.getElementById('driverName')?.value||'').trim();if(!driver){alert('Escribe tu nombre como conductor antes de aceptar');return}if(j.state!=='Disponible'||!j.fare)return;j.driver=driver;j.state='Aceptado';sessionStorage.setItem('fc_driver',driver);if(store())renderOperations()}
+if(t.dataset.release){const id=t.dataset.release,j=get(id),driver=document.getElementById('driverName')?.value?.trim();const g=groups().find(g=>g.id===id);if(j.driver!==driver||g?.items.some(o=>o.status==='En ruta'||o.status==='Entregado')){alert('No puedes liberar un servicio ya iniciado o asignado a otro conductor.');return}j.driver='';j.state='Disponible';if(store())renderOperations()}
+},true);
+document.addEventListener('click',e=>{const b=e.target.closest('[data-pickup]');if(!b)return;const o=orders.find(x=>x.id===b.dataset.pickup);if(!o)return;const j=get(o.condoId),driver=(document.getElementById('driverName')?.value||'').trim();if(j.state!=='Aceptado'||j.driver!==driver){e.stopImmediatePropagation();e.preventDefault();alert('Primero acepta el servicio de esta ruta con el mismo nombre de conductor.');return}},true);
+document.addEventListener('change',e=>{if(e.target.id==='driverName')setTimeout(renderDispatch,0)});
+renderDispatch();
+})();
